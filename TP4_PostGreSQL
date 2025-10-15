@@ -1,0 +1,353 @@
+-- ######################################################################################
+-- # FACULTAD DE INGENIERÍA - INGENIERÍA INFORMÁTICA - UNSTA
+-- # MATERIA: BASES DE DATOS - 4° TRABAJO PRÁCTICO: JOINS
+-- # OBJETIVO: Modelado E/R y aplicación de consultas SQL usando diferentes tipos de Joins.
+-- # PROFESOR: Ing. Tulio Ruesjas Martín.
+-- ######################################################################################
+
+
+-- ======================================================================================
+-- 1. ESTRUCTURA DE LA BASE DE DATOS (CREATE TABLES)
+-- ======================================================================================
+
+-- Eliminación de tablas si existen (para ejecutar el script varias veces sin errores)
+DROP TABLE IF EXISTS Pedidos;
+DROP TABLE IF EXISTS Productos;
+DROP TABLE IF EXISTS Clientes;
+DROP TABLE IF EXISTS Categorias;
+
+-- 1.1. Tabla CATEGORIAS
+CREATE TABLE Categorias (
+    categoria_id SERIAL PRIMARY KEY,
+    nombre_categoria VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- 1.2. Tabla CLIENTES
+CREATE TABLE Clientes (
+    cliente_id SERIAL PRIMARY KEY,
+    nombre_completo VARCHAR(150) NOT NULL,
+    ciudad VARCHAR(100) NOT NULL
+);
+
+-- 1.3. Tabla PRODUCTOS (FK a Categorias)
+CREATE TABLE Productos (
+    producto_id SERIAL PRIMARY KEY,
+    nombre_producto VARCHAR(150) NOT NULL,
+    precio_unitario NUMERIC(10, 2) NOT NULL,
+    categoria_id INTEGER, 
+    
+    -- Restricción de Clave Foránea (FK)
+    CONSTRAINT fk_categoria
+        FOREIGN KEY(categoria_id)
+        REFERENCES Categorias(categoria_id)
+        ON DELETE SET NULL -- Si se borra la categoría, se pone NULL en el producto.
+);
+
+-- 1.4. Tabla PEDIDOS (FKs a Clientes y Productos)
+CREATE TABLE Pedidos (
+    pedido_id SERIAL PRIMARY KEY,
+    fecha_compra DATE NOT NULL,
+    cantidad_unidades INTEGER NOT NULL,
+    cliente_id INTEGER NOT NULL,
+    producto_id INTEGER,
+    
+    -- Restricciones de Clave Foránea (FK)
+    CONSTRAINT fk_cliente
+        FOREIGN KEY(cliente_id)
+        REFERENCES Clientes(cliente_id)
+        ON DELETE RESTRICT, 
+        
+    CONSTRAINT fk_producto
+        FOREIGN KEY(producto_id)
+        REFERENCES Productos(producto_id)
+        ON DELETE SET NULL -- Si se borra el producto, se pone NULL en el pedido.
+);
+
+-- ======================================================================================
+-- 2. INSERCIÓN DE DATOS DE EJEMPLO (INSERT INTO)
+-- ======================================================================================
+
+-- Categorías
+INSERT INTO Categorias (nombre_categoria) VALUES
+('Electrónica'), -- ID 1
+('Libros'),      -- ID 2
+('Ropa'),        -- ID 3
+('Deportes'),    -- ID 4
+('Hogar');       -- ID 5 (Para la consulta 6: Categoría sin productos)
+
+-- Clientes
+INSERT INTO Clientes (nombre_completo, ciudad) VALUES
+('Juan Perez', 'Concepción'),       -- ID 1 (Tiene pedidos)
+('Maria Gómez', 'Tucumán'),         -- ID 2 (Tiene pedidos)
+('Carlos López', 'Concepción'),     -- ID 3 (Tiene pedidos)
+('Ana Torres', 'Salta'),            -- ID 4 (Para la consulta 9: No tiene pedidos)
+('Pedro Diaz', 'Concepción');       -- ID 5 (Tiene pedidos)
+
+-- Productos
+INSERT INTO Productos (nombre_producto, precio_unitario, categoria_id) VALUES
+('Laptop Pro', 1200.00, 1),           -- ID 1 (Electrónica) > 100
+('Auriculares BT', 95.50, 1),         -- ID 2 (Electrónica)
+('El Señor de los Anillos', 45.99, 2),-- ID 3 (Libros)
+('Camisa de Algodón', 35.00, 3),      -- ID 4 (Ropa)
+('Smart TV 50', 550.00, 1),           -- ID 5 (Electrónica) > 100
+('Balón de Fútbol', 15.00, 4),        -- ID 6 (Deportes)
+('Producto Huérfano', 80.00, 999);    -- ID 7 (Para la consulta 10: categoria_id que no existe)
+
+-- Pedidos
+INSERT INTO Pedidos (fecha_compra, cantidad_unidades, cliente_id, producto_id) VALUES
+('2025-01-10', 1, 1, 1),   -- Juan Perez: Laptop Pro (Pedido 1)
+('2025-01-10', 2, 1, 2),   -- Juan Perez: Auriculares BT (Pedido 2)
+('2025-02-15', 3, 3, 3),   -- Carlos López: El Señor de los Anillos (Pedido 3)
+('2025-03-01', 1, 2, 5),   -- Maria Gómez: Smart TV 50 (Pedido 4)
+('2025-03-05', 4, 2, NULL),-- Maria Gómez: Producto Desconocido (Para la consulta 11: Pedido con producto NULL)
+('2025-04-10', 1, 5, 1),   -- Pedro Diaz: Laptop Pro (Pedido 6)
+('2025-04-15', 2, 1, 4),   -- Juan Perez: Camisa de Algodón (Pedido 7)
+('2025-04-20', 1, 3, 5);   -- Carlos López: Smart TV 50 (Pedido 8)
+
+-- ======================================================================================
+-- 3. CONSULTAS SQL SOLICITADAS
+-- ======================================================================================
+
+-- 1. Listar el nombre del cliente y el ID de los pedidos que ha realizado.
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    P.pedido_id AS "ID Pedido"
+FROM 
+    Clientes C
+INNER JOIN 
+    Pedidos P ON C.cliente_id = P.cliente_id;
+
+----------------------------------------------------------------------------------------
+-- 2. Listar el nombre de todos los productos y el nombre de su categoría, solo si la 
+--    categoría está correctamente definida.
+SELECT 
+    Pr.nombre_producto AS "Producto", 
+    Ca.nombre_categoria AS "Categoría"
+FROM 
+    Productos Pr
+INNER JOIN 
+    Categorias Ca ON Pr.categoria_id = Ca.categoria_id;
+
+----------------------------------------------------------------------------------------
+-- 3. Mostrar el nombre del cliente, el producto que compró y la cantidad, solo para pedidos 
+--    realizados por clientes de 'Concepción'.
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    Pr.nombre_producto AS "Producto", 
+    Pe.cantidad_unidades AS "Cantidad"
+FROM 
+    Pedidos Pe
+INNER JOIN 
+    Clientes C ON Pe.cliente_id = C.cliente_id
+INNER JOIN 
+    Productos Pr ON Pe.producto_id = Pr.producto_id
+WHERE 
+    C.ciudad = 'Concepción';
+
+----------------------------------------------------------------------------------------
+-- 4. Mostrar el nombre del producto y el nombre de la categoría para productos con un 
+--    precio superior a $100.00.
+SELECT 
+    Pr.nombre_producto AS "Producto", 
+    Ca.nombre_categoria AS "Categoría"
+FROM 
+    Productos Pr
+INNER JOIN 
+    Categorias Ca ON Pr.categoria_id = Ca.categoria_id
+WHERE 
+    Pr.precio_unitario > 100.00;
+
+----------------------------------------------------------------------------------------
+-- 5. Listar todos los clientes y, si han realizado pedidos, mostrar la fecha de su primer pedido. 
+--    Asegúrate de incluir a los clientes sin pedidos. (LEFT JOIN y Subconsulta)
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    MinPedidos.fecha_primer_pedido AS "Fecha Primer Pedido"
+FROM 
+    Clientes C
+LEFT JOIN 
+    (SELECT cliente_id, MIN(fecha_compra) AS fecha_primer_pedido
+     FROM Pedidos
+     GROUP BY cliente_id) AS MinPedidos 
+ON 
+    C.cliente_id = MinPedidos.cliente_id;
+
+----------------------------------------------------------------------------------------
+-- 6. Listar todas las categorías y los productos que pertenecen a ellas. Incluir categorías 
+--    que aún no tienen productos asignados (como 'Hogar'). (LEFT JOIN)
+SELECT 
+    Ca.nombre_categoria AS "Categoría", 
+    Pr.nombre_producto AS "Producto"
+FROM 
+    Categorias Ca
+LEFT JOIN 
+    Productos Pr ON Ca.categoria_id = Pr.categoria_id;
+
+----------------------------------------------------------------------------------------
+-- 7. Contar cuántos pedidos ha realizado cada cliente. Incluir clientes con 0 pedidos. 
+--    (LEFT JOIN y COUNT/GROUP BY)
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    COUNT(P.pedido_id) AS "Total Pedidos"
+FROM 
+    Clientes C
+LEFT JOIN 
+    Pedidos P ON C.cliente_id = P.cliente_id
+GROUP BY 
+    C.cliente_id, C.nombre_completo
+ORDER BY 
+    "Total Pedidos" DESC;
+
+----------------------------------------------------------------------------------------
+-- 8. Mostrar el nombre de todos los productos, y su precio. Si el producto no tiene una 
+--    categoría válida, mostrar NULL en el nombre de la categoría. (LEFT JOIN)
+SELECT 
+    Pr.nombre_producto AS "Producto", 
+    Pr.precio_unitario AS "Precio", 
+    Ca.nombre_categoria AS "Categoría"
+FROM 
+    Productos Pr
+LEFT JOIN 
+    Categorias Ca ON Pr.categoria_id = Ca.categoria_id;
+
+----------------------------------------------------------------------------------------
+-- 9. Encontrar la lista de clientes que nunca han realizado un pedido. (LEFT JOIN con WHERE IS NULL)
+SELECT 
+    C.nombre_completo AS "Cliente sin Pedidos"
+FROM 
+    Clientes C
+LEFT JOIN 
+    Pedidos P ON C.cliente_id = P.cliente_id
+WHERE 
+    P.pedido_id IS NULL;
+
+----------------------------------------------------------------------------------------
+-- 10. Encontrar los productos que tienen asignado un categoria_id que no existe en la 
+--     tabla Categorias (es decir, productos "huérfanos"). (NOT IN)
+SELECT 
+    Pr.nombre_producto AS "Producto Huérfano"
+FROM 
+    Productos Pr
+WHERE 
+    Pr.categoria_id IS NOT NULL 
+    AND Pr.categoria_id NOT IN (SELECT categoria_id FROM Categorias);
+
+----------------------------------------------------------------------------------------
+-- 11. Mostrar todos los pedidos y la ciudad del cliente que lo realizó. Asegúrate de incluir 
+--     los pedidos que no tienen un cliente válido. (LEFT JOIN)
+--     *Nota: Con la FK ON DELETE RESTRICT, solo se mostrará NULL si el cliente_id del pedido es NULL (lo cual no ocurre aquí) o 
+--     si la columna 'cliente_id' en Pedidos se definiera como nullable. La lógica del LEFT JOIN es la correcta.*
+SELECT 
+    P.pedido_id AS "ID Pedido", 
+    P.fecha_compra AS "Fecha",
+    C.ciudad AS "Ciudad del Cliente"
+FROM 
+    Pedidos P
+LEFT JOIN 
+    Clientes C ON P.cliente_id = C.cliente_id;
+
+----------------------------------------------------------------------------------------
+-- 12. Listar todas las categorías y, si tienen productos, mostrar el nombre del producto. 
+--     Si no tienen, mostrar NULL en el nombre del producto. (LEFT JOIN)
+SELECT 
+    Ca.nombre_categoria AS "Categoría", 
+    Pr.nombre_producto AS "Producto"
+FROM 
+    Categorias Ca
+LEFT JOIN 
+    Productos Pr ON Ca.categoria_id = Pr.categoria_id;
+
+----------------------------------------------------------------------------------------
+-- 13. Listar el nombre de todos los productos y el ID de los pedidos en los que han sido 
+--     incluidos. Incluir productos que nunca han sido pedidos. (LEFT JOIN)
+SELECT 
+    Pr.nombre_producto AS "Producto", 
+    P.pedido_id AS "ID Pedido"
+FROM 
+    Productos Pr
+LEFT JOIN 
+    Pedidos P ON Pr.producto_id = P.producto_id
+ORDER BY 
+    Pr.producto_id;
+
+----------------------------------------------------------------------------------------
+-- 14. Mostrar el nombre de todos los clientes y, si tienen pedidos, el nombre del producto 
+--     más caro que compraron. Incluir clientes sin pedidos. (LEFT JOIN y LATERAL JOIN/Subconsulta)
+WITH MaxPrecioPorCliente AS (
+    -- 1. Encuentra el precio unitario MÁXIMO de los productos comprados por CADA cliente
+    SELECT
+        P.cliente_id,
+        MAX(Pr.precio_unitario) AS precio_maximo
+    FROM
+        Pedidos P
+    JOIN
+        Productos Pr ON P.producto_id = Pr.producto_id
+    GROUP BY
+        P.cliente_id
+)
+SELECT
+    C.nombre_completo AS "Cliente",
+    -- 2. Usa LATERAL JOIN para encontrar el nombre del producto que tiene ese precio máximo
+    T1.nombre_producto AS "Producto Más Caro Comprado"
+FROM
+    Clientes C
+LEFT JOIN 
+    MaxPrecioPorCliente MaxP ON C.cliente_id = MaxP.cliente_id
+LEFT JOIN LATERAL
+    (SELECT Pr.nombre_producto
+     FROM Pedidos P
+     JOIN Productos Pr ON P.producto_id = Pr.producto_id
+     WHERE P.cliente_id = C.cliente_id
+       AND Pr.precio_unitario = MaxP.precio_maximo
+     LIMIT 1) AS T1 ON true;
+
+----------------------------------------------------------------------------------------
+-- 15. Mostrar el nombre del cliente, el producto comprado y el nombre de la categoría 
+--     para todos los pedidos válidos. (Relaciona 3 Tablas: INNER JOIN)
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    Pr.nombre_producto AS "Producto Comprado", 
+    Ca.nombre_categoria AS "Categoría"
+FROM 
+    Pedidos P
+INNER JOIN 
+    Clientes C ON P.cliente_id = C.cliente_id
+INNER JOIN 
+    Productos Pr ON P.producto_id = Pr.producto_id 
+INNER JOIN 
+    Categorias Ca ON Pr.categoria_id = Ca.categoria_id; 
+
+----------------------------------------------------------------------------------------
+-- 16. Mostrar el nombre del cliente, el producto comprado y el nombre de la categoría, 
+--     incluyendo todos los clientes, incluso si no tienen pedidos. (Relaciona 3 Tablas: LEFT JOIN)
+SELECT 
+    C.nombre_completo AS "Cliente", 
+    Pr.nombre_producto AS "Producto Comprado", 
+    Ca.nombre_categoria AS "Categoría"
+FROM 
+    Clientes C
+LEFT JOIN 
+    Pedidos P ON C.cliente_id = P.cliente_id
+LEFT JOIN 
+    Productos Pr ON P.producto_id = Pr.producto_id
+LEFT JOIN 
+    Categorias Ca ON Pr.categoria_id = Ca.categoria_id;
+
+----------------------------------------------------------------------------------------
+-- 17. Listar el nombre de la categoría y el valor total vendido en esa categoría. 
+--     Incluir categorías que no han tenido ventas (mostrar total 0). (LEFT JOIN y COALESCE/SUM)
+SELECT 
+    Ca.nombre_categoria AS "Categoría", 
+    COALESCE(SUM(P.cantidad_unidades * Pr.precio_unitario), 0) AS "Total Vendido"
+FROM 
+    Categorias Ca
+LEFT JOIN 
+    Productos Pr ON Ca.categoria_id = Pr.categoria_id
+LEFT JOIN 
+    Pedidos P ON Pr.producto_id = P.producto_id
+GROUP BY 
+    Ca.nombre_categoria
+ORDER BY 
+    "Total Vendido" DESC;
+
+-- FIN DEL SCRIPT
