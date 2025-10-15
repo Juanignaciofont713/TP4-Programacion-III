@@ -9,7 +9,7 @@
 -- 1. ESTRUCTURA DE LA BASE DE DATOS (CREATE TABLES)
 -- ======================================================================================
 
--- Eliminación de tablas si existen (para ejecutar el script varias veces sin errores)
+-- Eliminación de tablas si existen
 DROP TABLE IF EXISTS Pedidos;
 DROP TABLE IF EXISTS Productos;
 DROP TABLE IF EXISTS Clientes;
@@ -63,7 +63,7 @@ CREATE TABLE Pedidos (
 );
 
 -- ======================================================================================
--- 2. INSERCIÓN DE DATOS DE EJEMPLO (INSERT INTO)
+-- 2. INSERCIÓN DE DATOS (INSERT INTO)
 -- ======================================================================================
 
 -- Categorías
@@ -232,9 +232,7 @@ WHERE
     AND Pr.categoria_id NOT IN (SELECT categoria_id FROM Categorias);
 
 ----------------------------------------------------------------------------------------
--- 11. Mostrar todos los pedidos y la ciudad del cliente que lo realizó. Asegúrate de incluir 
---     los pedidos que no tienen un cliente válido. (LEFT JOIN)
---     *Nota: Con la FK ON DELETE RESTRICT, solo se mostrará NULL si el cliente_id del pedido es NULL (lo cual no ocurre aquí) o 
+-- 11. Mostrar todos los pedidos y la ciudad del cliente que lo realizó. Con la FK ON DELETE RESTRICT, solo se mostrará NULL si el cliente_id del pedido es NULL (lo cual no ocurre aquí) o 
 --     si la columna 'cliente_id' en Pedidos se definiera como nullable. La lógica del LEFT JOIN es la correcta.*
 SELECT 
     P.pedido_id AS "ID Pedido", 
@@ -286,7 +284,7 @@ WITH MaxPrecioPorCliente AS (
 )
 SELECT
     C.nombre_completo AS "Cliente",
-    -- 2. Usa LATERAL JOIN para encontrar el nombre del producto que tiene ese precio máximo
+    -- 2. Uso LATERAL JOIN para encontrar el nombre del producto que tiene ese precio máximo
     T1.nombre_producto AS "Producto Más Caro Comprado"
 FROM
     Clientes C
@@ -333,8 +331,7 @@ LEFT JOIN
     Categorias Ca ON Pr.categoria_id = Ca.categoria_id;
 
 ----------------------------------------------------------------------------------------
--- 17. Listar el nombre de la categoría y el valor total vendido en esa categoría. 
---     Incluir categorías que no han tenido ventas (mostrar total 0). (LEFT JOIN y COALESCE/SUM)
+-- 17. Listar el nombre de la categoría y el valor total vendido en esa categoría (LEFT JOIN y COALESCE/SUM)
 SELECT 
     Ca.nombre_categoria AS "Categoría", 
     COALESCE(SUM(P.cantidad_unidades * Pr.precio_unitario), 0) AS "Total Vendido"
@@ -348,5 +345,6 @@ GROUP BY
     Ca.nombre_categoria
 ORDER BY 
     "Total Vendido" DESC;
+
 
 -- FIN DEL SCRIPT
